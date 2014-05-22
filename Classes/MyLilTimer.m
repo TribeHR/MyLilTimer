@@ -96,11 +96,11 @@ MyLilTimerClock MyLilTimerClockFromBehavior(MyLilTimerBehavior behavior)
 
 @interface MyLilTimer ()
 @property (nonatomic, readwrite, getter = isValid) BOOL valid;
+@property (nonatomic, strong) id target;
 @end
 
 
 @implementation MyLilTimer {
-    id _target;
     SEL _action;
 
     NSTimeInterval _fireClockValue;
@@ -211,9 +211,10 @@ MyLilTimerClock MyLilTimerClockFromBehavior(MyLilTimerBehavior behavior)
     if (!self.valid) {
         return;
     }
-
-    ((void(*)(id, SEL, id))objc_msgSend)(_target, _action, self);
-    //[_target performSelector:_action withObject:self];
+    
+    if (self.target) {
+        ((void(*)(id, SEL, id))objc_msgSend)(self.target, _action, self);
+    }
 
     [self invalidate];
 }
@@ -239,20 +240,21 @@ MyLilTimerClock MyLilTimerClockFromBehavior(MyLilTimerBehavior behavior)
     if (!self.valid) {
         return;
     }
-
+    
     self.valid = NO;
-    _target = nil;
+
+    [_nextCheckTimer invalidate];
+    _nextCheckTimer = nil;
+    
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:MyLilTimerHostCalendarChangedNotification object:nil];
+    _notifier = nil;
+    
+    self.target = nil;
     _userInfo = nil;
 
     if (!_runLoopModes) {
         return; // never scheduled
     }
-
-    [_nextCheckTimer invalidate];
-    _nextCheckTimer = nil;
-
-    [[NSNotificationCenter defaultCenter] removeObserver:self name:MyLilTimerHostCalendarChangedNotification object:nil];
-    _notifier = nil;
 }
 
 
