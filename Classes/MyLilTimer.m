@@ -93,10 +93,29 @@ MyLilTimerClock MyLilTimerClockFromBehavior(MyLilTimerBehavior behavior)
 + (instancetype)sharedInstance;
 @end
 
+@protocol MyLilTimerTargetHolder <NSObject>
+- (id)target;
+- (void)setTarget:(id)target;
+@end
+
+@interface MyLilTimerStrongTargetHolder : NSObject<MyLilTimerTargetHolder>
+@property (nonatomic, strong) id target;
+@end
+@implementation MyLilTimerStrongTargetHolder
+@synthesize target = _target;
+@end
+
+@interface MyLilTimerWeakTargetHolder : NSObject<MyLilTimerTargetHolder>
+@property (nonatomic, weak) id target;
+@end
+@implementation MyLilTimerWeakTargetHolder
+@synthesize target = _target;
+@end
+
 
 @interface MyLilTimer ()
 @property (nonatomic, readwrite, getter = isValid) BOOL valid;
-@property (nonatomic, strong) id target;
+@property (nonatomic, strong) id<MyLilTimerTargetHolder> targetHolder;
 @end
 
 
@@ -153,15 +172,40 @@ MyLilTimerClock MyLilTimerClockFromBehavior(MyLilTimerBehavior behavior)
     return NAN; // assertions disabled
 }
 
-+ (instancetype)scheduledTimerWithBehavior:(MyLilTimerBehavior)behavior timeInterval:(NSTimeInterval)intervalSinceNow target:(id)target selector:(SEL)action userInfo:(id)userInfo
++ (instancetype)scheduledTimerWithBehavior:(MyLilTimerBehavior)behavior timeInterval:(NSTimeInterval)intervalSinceNow target:(id)target selector:(SEL)action userInfo:(id)userInfo {
+    return [self scheduledTimerWithBehavior:behavior timeInterval:intervalSinceNow target:target selector:action userInfo:userInfo strongReference:YES];
+}
+
++ (instancetype)scheduledTimerWithBehavior:(MyLilTimerBehavior)behavior timeInterval:(NSTimeInterval)intervalSinceNow target:(id)target selector:(SEL)action userInfo:(id)userInfo strongReference:(BOOL)strongReference
 {
     assertMainThread();
-    MyLilTimer *timer = [[self alloc] initWithBehavior:behavior timeInterval:intervalSinceNow target:target selector:action userInfo:userInfo];
+    
+    MyLilTimer *timer = [[self alloc] initWithBehavior:behavior timeInterval:intervalSinceNow target:target selector:action userInfo:userInfo strongReference:strongReference];
     [timer scheduleOnMainRunLoopForModes:[NSSet setWithObject:NSRunLoopCommonModes]];
     return timer;
 }
 
-- (instancetype)initWithBehavior:(MyLilTimerBehavior)behavior timeInterval:(NSTimeInterval)intervalSinceNow target:(id)target selector:(SEL)action userInfo:(id)userInfo
+- (instancetype)initWithBehavior:(MyLilTimerBehavior)behavior timeInterval:(NSTimeInterval)intervalSinceNow target:(id)target selector:(SEL)action userInfo:(id)userInfo {
+    self = [self initWithBehavior:behavior timeInterval:intervalSinceNow target:target selector:action userInfo:userInfo strongReference:YES];
+    return self;
+}
+
+- (instancetype)initWithBehavior:(MyLilTimerBehavior)behavior timeInterval:(NSTimeInterval)intervalSinceNow target:(id)target selector:(SEL)action userInfo:(id)userInfo strongReference:(BOOL)strongReference {
+    assertMainThread();
+    
+    id<MyLilTimerTargetHolder> holder = nil;
+    if (strongReference) {
+        holder = [MyLilTimerStrongTargetHolder new];
+    } else {
+        holder = [MyLilTimerWeakTargetHolder new];
+    }
+    [holder setTarget:target];
+    
+    self = [self initWithBehavior:behavior timeInterval:intervalSinceNow targetHolder:holder selector:action userInfo:userInfo];
+    return self;
+}
+
+- (instancetype)initWithBehavior:(MyLilTimerBehavior)behavior timeInterval:(NSTimeInterval)intervalSinceNow targetHolder:(id<MyLilTimerTargetHolder>)targetHolder selector:(SEL)action userInfo:(id)userInfo
 {
     if (!(self = [super init])) {
         return nil;
@@ -169,9 +213,10 @@ MyLilTimerClock MyLilTimerClockFromBehavior(MyLilTimerBehavior behavior)
 
     assertMainThread();
     NSParameterAssert(isValidBehavior(behavior));
-    NSParameterAssert(target != nil);
+    NSParameterAssert(targetHolder != nil);
+    NSParameterAssert([targetHolder target] != nil);
     NSParameterAssert(action != NULL);
-    if (!isValidBehavior(behavior) || !target || !action) { // assertions diabled
+    if (!isValidBehavior(behavior) || !targetHolder || ![targetHolder target] || !action) { // assertions diabled
         return nil;
     }
 
@@ -179,7 +224,7 @@ MyLilTimerClock MyLilTimerClockFromBehavior(MyLilTimerBehavior behavior)
     intervalSinceNow = MAX(0.1e-3, intervalSinceNow);
 
     _behavior = behavior;
-    _target = target;
+    _targetHolder = targetHolder;
     _action = action;
     _userInfo = userInfo;
 
@@ -212,8 +257,10 @@ MyLilTimerClock MyLilTimerClockFromBehavior(MyLilTimerBehavior behavior)
         return;
     }
     
-    if (self.target) {
-        ((void(*)(id, SEL, id))objc_msgSend)(self.target, _action, self);
+    id target = [self.targetHolder target];
+    
+    if (target) {
+        ((void(*)(id, SEL, id))objc_msgSend)(target, _action, self);
     }
 
     [self invalidate];
@@ -249,7 +296,8 @@ MyLilTimerClock MyLilTimerClockFromBehavior(MyLilTimerBehavior behavior)
     [[NSNotificationCenter defaultCenter] removeObserver:self name:MyLilTimerHostCalendarChangedNotification object:nil];
     _notifier = nil;
     
-    self.target = nil;
+    [self.targetHolder setTarget:nil];
+    self.targetHolder = nil;
     _userInfo = nil;
 
     if (!_runLoopModes) {

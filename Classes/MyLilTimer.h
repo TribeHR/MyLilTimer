@@ -68,8 +68,11 @@ MyLilTimerClock MyLilTimerClockFromBehavior(MyLilTimerBehavior behavior);
  *
  * \param userInfo an arbitrary object associated with the timer.
  *     The timer releases this object when it's invalidated (after the action has been sent to the target).
+ * \param strongReference whether \p target should be held strongly or weakly by the timer
  */
-+ (instancetype)scheduledTimerWithBehavior:(MyLilTimerBehavior)behavior timeInterval:(NSTimeInterval)intervalSinceNow target:(id)target selector:(SEL)action userInfo:(id)userInfo;
++ (instancetype)scheduledTimerWithBehavior:(MyLilTimerBehavior)behavior timeInterval:(NSTimeInterval)intervalSinceNow target:(id)target selector:(SEL)action userInfo:(id)userInfo strongReference:(BOOL)strongReference;
+
++ (instancetype)scheduledTimerWithBehavior:(MyLilTimerBehavior)behavior timeInterval:(NSTimeInterval)intervalSinceNow target:(id)target selector:(SEL)action userInfo:(id)userInfo __attribute__((deprecated("use +scheduledTimerWithBehavior:timeInterval:target:selector:userInfo:strongReference: instead")));
 
 /**
  * Creates a new timer, without scheduling it on a run loop.
@@ -90,8 +93,11 @@ MyLilTimerClock MyLilTimerClockFromBehavior(MyLilTimerBehavior behavior);
  *
  * \param userInfo an arbitrary object associated with the timer.
  *     The timer releases this object when it's invalidated (after the action has been sent to the target).
+ * \param strongReference whether \p target should be held strongly or weakly by the timer
  */
-- (instancetype)initWithBehavior:(MyLilTimerBehavior)behavior timeInterval:(NSTimeInterval)intervalSinceNow target:(id)target selector:(SEL)action userInfo:(id)userInfo;
+- (instancetype)initWithBehavior:(MyLilTimerBehavior)behavior timeInterval:(NSTimeInterval)intervalSinceNow target:(id)target selector:(SEL)action userInfo:(id)userInfo strongReference:(BOOL)strongReference;
+
+- (instancetype)initWithBehavior:(MyLilTimerBehavior)behavior timeInterval:(NSTimeInterval)intervalSinceNow target:(id)target selector:(SEL)action userInfo:(id)userInfo __attribute__((deprecated("use -initWithBehavior:timeInterval:target:selector:userInfo:strongReference instead")));
 
 /**
  * Currently only timers on the main thread (using the main loop) are supported.
