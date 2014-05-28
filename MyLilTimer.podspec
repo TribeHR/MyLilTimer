@@ -1,12 +1,12 @@
 Pod::Spec.new do |s|
   s.name         = "MyLilTimer"
-  s.version      = "0.1.0"
+  s.version      = "0.2.0"
   s.summary      = "Timer class for iOS and OS X offering a choice of behaviors."
   s.homepage     = "https://github.com/jmah/MyLilTimer"
   s.license      = 'Public Domain'
   s.author       = { "Jonathon Mah" => "me@JonathonMah.com" }
   s.source       = {
-    :git => "https://github.com/jmah/MyLilTimer.git",
+    :git => "https://github.com/TribeHR/MyLilTimer.git",
     :tag => "v#{s.version}"
   }
 
